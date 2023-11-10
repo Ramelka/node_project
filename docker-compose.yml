@@ -1,0 +1,62 @@
+version: '3.7'
+services:
+  webapp:
+    restart: unless-stopped
+    container_name: docker-nest-js
+    working_dir: /usr/src/app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/usr/src/app
+      - /usr/app/node_modules
+    ports:
+      - "3000:${WEBAPP_PORT}"
+    tty: true
+    command: "npm start"
+    networks:
+      - node_network
+
+  webserver:
+    restart: unless-stopped
+    image: nginx:1.23.1-alpine
+    container_name: docker-nginx
+    ports:
+      - 8080:${NGINX_PORT}
+    depends_on:
+      - webapp
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - node_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: docker-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+      - node_network
+    hostname: rabbitmq-host
+
+  mongodb:
+    image: mongo:6.0
+    container_name: docker-mongodb
+    volumes:
+      - ~/mongo:/data/db
+    ports:
+      - "${DB_PORT}:27017"
+    networks:
+      - node_network
+    hostname: mongodb-host
+
+networks:
+  node_network:
+    driver: bridge
